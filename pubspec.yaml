@@ -37,6 +37,9 @@ dependencies:
   fluttertoast: ^8.2.2
   cupertino_icons: ^1.0.8
   firebase_auth: ^5.5.1
+  file_picker: ^9.2.1
+  firebase_storage: ^12.4.4
+  open_file: ^3.3.1
 
 dev_dependencies:
   flutter_test:

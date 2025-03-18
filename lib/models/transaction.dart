@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class TransactionModel {
+  final String? fileUrl; // URL do arquivo no Storage
+  final String? fileName;
   String? id;
   final String title;
   final double amount;
@@ -14,6 +16,8 @@ class TransactionModel {
     required this.amount,
     required this.date,
     required this.userId,
+    this.fileUrl,
+    this.fileName,
   });
 
   factory TransactionModel.fromFirestore(DocumentSnapshot doc) {
@@ -24,6 +28,8 @@ class TransactionModel {
       amount: data['amount'],
       date: (data['date'] as Timestamp).toDate(),
       userId: data['userId'],
+      fileUrl: data['fileUrl'],
+      fileName: data['fileName'],
     );
   }
 
@@ -33,6 +39,8 @@ class TransactionModel {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'userId': userId,
+      'fileUrl': fileUrl,
+      'fileName': fileName,
     };
   }
 

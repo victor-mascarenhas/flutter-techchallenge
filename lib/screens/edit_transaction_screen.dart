@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/transaction.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/auth_provider.dart';
@@ -19,6 +22,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   DateTime? _selectedDate;
+  PlatformFile? _pickedFile;
+  UploadTask? _uploadTask;
+  double _uploadProgress = 0.0;
 
   @override
   void initState() {
@@ -28,6 +34,42 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       _amountController.text = widget.transaction!.amount.toString();
       _selectedDate = widget.transaction!.date;
     }
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'png', 'pdf'],
+    );
+
+    if (result != null) {
+      setState(() => _pickedFile = result.files.first);
+    }
+  }
+
+  Future<String?> _uploadFile() async {
+    if (_pickedFile == null) return null;
+
+    final storage = FirebaseStorage.instance;
+    final userId =
+        Provider.of<AuthProvider>(context, listen: false).currentUser!.uid;
+
+    final ref = storage.ref().child(
+      'user_files/$userId/${DateTime.now().toIso8601String()}_${_pickedFile!.name}',
+    );
+
+    final file = File(_pickedFile!.path!);
+    _uploadTask = ref.putFile(file);
+
+    // Adiciona listener para atualizar o progresso
+    _uploadTask!.snapshotEvents.listen((TaskSnapshot snapshot) {
+      setState(() {
+        _uploadProgress = snapshot.bytesTransferred / snapshot.totalBytes;
+      });
+    });
+
+    final snapshot = await _uploadTask!;
+    return await snapshot.ref.getDownloadURL();
   }
 
   Future<void> _selectDate() async {
@@ -45,7 +87,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   Future<void> _saveForm() async {
     if (!_formKey.currentState!.validate() || _selectedDate == null) return;
 
+    final fileUrl = await _uploadFile();
+
     final transaction = TransactionModel(
+      fileUrl: fileUrl ?? widget.transaction?.fileUrl,
+      fileName: _pickedFile?.name ?? widget.transaction?.fileName,
       id: widget.transaction?.id,
       title: _titleController.text,
       amount: double.parse(_amountController.text),
@@ -98,6 +144,24 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                   ),
                 ],
               ),
+              ElevatedButton(
+                onPressed: _pickFile,
+                child: Text(
+                  _pickedFile?.name ??
+                      widget.transaction?.fileName ??
+                      'Anexar Arquivo',
+                ),
+              ),
+              if (_uploadTask != null)
+                Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(value: _uploadProgress),
+                    const SizedBox(height: 4),
+                    Text('${(_uploadProgress * 100).toStringAsFixed(0)}%'),
+                  ],
+                ),
+              const SizedBox(height: 16),
               ElevatedButton(onPressed: _saveForm, child: Text('Salvar')),
             ],
           ),
