@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class TransactionModel {
-  final String? fileUrl; // URL do arquivo no Storage
+  final String? fileUrl;
   final String? fileName;
   String? id;
   final String title;
