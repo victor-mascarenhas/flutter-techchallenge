@@ -14,9 +14,14 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLogin = true;
+  bool _isLoading = false;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
 
     final email = _emailController.text;
     final password = _passwordController.text;
@@ -33,45 +38,100 @@ class _AuthScreenState extends State<AuthScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Falha na autenticação: ${e.toString()}')),
       );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Cadastro')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator:
-                    (value) => value!.contains('@') ? null : 'Email inválido',
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blueAccent, Colors.lightBlue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Senha'),
-                obscureText: true,
-                validator:
-                    (value) =>
-                        value!.length >= 6 ? null : 'Mínimo 6 caracteres',
-              ),
-              ElevatedButton(
-                onPressed: _submit,
-                child: Text(_isLogin ? 'Entrar' : 'Cadastrar'),
-              ),
-              TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
-                child: Text(
-                  _isLogin ? 'Criar nova conta' : 'Já possui conta? Entrar',
+              elevation: 8,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isLogin ? 'Login' : 'Cadastro',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator:
+                            (value) =>
+                                value!.contains('@') ? null : 'Email inválido',
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: const InputDecoration(
+                          labelText: 'Senha',
+                          prefixIcon: Icon(Icons.lock),
+                        ),
+                        obscureText: true,
+                        validator:
+                            (value) =>
+                                value!.length >= 6
+                                    ? null
+                                    : 'Mínimo 6 caracteres',
+                      ),
+                      const SizedBox(height: 24),
+                      _isLoading
+                          ? const CircularProgressIndicator()
+                          : ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              _isLogin ? 'Entrar' : 'Cadastrar',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => setState(() => _isLogin = !_isLogin),
+                        child: Text(
+                          _isLogin
+                              ? 'Criar nova conta'
+                              : 'Já possui conta? Entrar',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
