@@ -23,6 +23,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   DateTime? _selectedDate;
+  TransactionType _selectedType = TransactionType.deposit;
   PlatformFile? _pickedFile;
   UploadTask? _uploadTask;
   String? _uploadedFileUrl;
@@ -34,8 +35,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     super.initState();
     if (widget.transaction != null) {
       _titleController.text = widget.transaction!.title;
-      _amountController.text = widget.transaction!.amount.toString();
+      _amountController.text =
+          widget.transaction!.amount.abs().toString(); // Use valor absoluto
       _selectedDate = widget.transaction!.date;
+      _selectedType = widget.transaction!.type;
     }
   }
 
@@ -160,6 +163,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
   }
 
+  void _changeType(TransactionType type) {
+    setState(() {
+      _selectedType = type;
+    });
+  }
+
   Future<void> _saveForm() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,6 +185,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       ).showSnackBar(SnackBar(content: Text('Por favor, selecione uma data')));
       return;
     }
+
+    // Pega o valor absoluto do campo e ajusta conforme o tipo
+    double absAmount = double.parse(_amountController.text);
+    double finalAmount =
+        _selectedType == TransactionType.deposit
+            ? absAmount
+            : -absAmount; // Valor negativo para transferência
 
     showDialog(
       context: context,
@@ -208,12 +224,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       final transaction = TransactionModel(
         id: widget.transaction?.id,
         title: _titleController.text,
-        amount: double.parse(_amountController.text),
+        amount: finalAmount, // Usa o valor ajustado conforme o tipo
         date: _selectedDate!,
         fileUrl: fileUrl,
         fileName: fileName,
         userId:
             Provider.of<AuthProvider>(context, listen: false).currentUser!.uid,
+        type: _selectedType,
       );
 
       final provider = Provider.of<TransactionProvider>(context, listen: false);
@@ -224,7 +241,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
 
       Navigator.of(context).pop();
-
       Navigator.of(context).pop();
     } catch (e) {
       Navigator.of(context).pop();
@@ -271,56 +287,60 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                   controller: _titleController,
                   decoration: InputDecoration(
                     labelText: 'Título',
-                    border: OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: EdgeInsets.all(12),
                   ),
                   validator:
                       (value) => value!.isEmpty ? 'Insira um título' : null,
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: 8),
                 TextFormField(
                   controller: _amountController,
                   decoration: InputDecoration(
                     labelText: 'Valor',
-                    border: OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: EdgeInsets.all(12),
                     prefixText: 'R\$ ',
                   ),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value!.isEmpty) return 'Insira um valor';
                     if (double.tryParse(value) == null) return 'Valor inválido';
+                    if (double.parse(value) <= 0)
+                      return 'Valor deve ser positivo';
                     return null;
                   },
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: 8),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Data da transação',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text('Tipo:', style: TextStyle(fontSize: 14)),
                         ),
-                        SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.calendar_today),
-                            SizedBox(width: 8),
-                            Text(
-                              _selectedDate == null
-                                  ? 'Nenhuma data selecionada'
-                                  : DateFormat(
-                                    'dd/MM/yyyy',
-                                  ).format(_selectedDate!),
-                            ),
-                            Spacer(),
-                            TextButton.icon(
-                              onPressed: _selectDate,
-                              icon: Icon(Icons.date_range),
-                              label: Text('Selecionar'),
-                            ),
-                          ],
+                        RadioListTile<TransactionType>(
+                          title: Text(
+                            'Depósito',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          value: TransactionType.deposit,
+                          groupValue: _selectedType,
+                          dense: true,
+                          onChanged: (value) => _changeType(value!),
+                        ),
+                        RadioListTile<TransactionType>(
+                          title: Text(
+                            'Transferência',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          value: TransactionType.transfer,
+                          groupValue: _selectedType,
+                          dense: true,
+                          onChanged: (value) => _changeType(value!),
                         ),
                       ],
                     ),
@@ -330,99 +350,65 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Comprovante',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 8),
-                        InkWell(
-                          onTap:
-                              _pickedFile != null ||
-                                      widget.transaction?.fileUrl != null ||
-                                      _uploadedFileUrl != null
-                                  ? _viewAttachedFile
-                                  : _pickFile,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              vertical: 16,
-                              horizontal: 16,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.calendar_today, size: 20),
+                      title: Text(
+                        _selectedDate != null
+                            ? DateFormat('dd/MM/yy').format(_selectedDate!)
+                            : 'Selecione a data',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      trailing: IconButton(
+                        icon: Icon(Icons.edit, size: 20),
+                        onPressed: _selectDate,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(_getFileIcon(), size: 20),
+                      title: Text(
+                        _pickedFile?.name ??
+                            widget.transaction?.fileName ??
+                            'Nenhum arquivo',
+                        style: TextStyle(fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_pickedFile != null ||
+                              widget.transaction?.fileUrl != null)
+                            IconButton(
+                              icon: Icon(Icons.visibility, size: 20),
+                              onPressed: _viewAttachedFile,
                             ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _pickedFile != null ||
-                                          widget.transaction?.fileUrl != null ||
-                                          _uploadedFileUrl != null
-                                      ? _getFileIcon()
-                                      : Icons.attach_file,
-                                  color: Colors.blue,
-                                  size: 28,
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _pickedFile?.name ??
-                                            widget.transaction?.fileName ??
-                                            'Nenhum arquivo selecionado',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (_pickedFile != null)
-                                        Text(
-                                          '${(_pickedFile!.size / 1024).toStringAsFixed(2)} KB',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.add_circle_outline),
-                                  onPressed: _pickFile,
-                                  tooltip: 'Alterar arquivo',
-                                ),
-                              ],
-                            ),
+                          IconButton(
+                            icon: Icon(Icons.attach_file, size: 20),
+                            onPressed: _pickFile,
                           ),
-                        ),
-                        if (_isUploading)
-                          Column(
-                            children: [
-                              SizedBox(height: 12),
-                              LinearProgressIndicator(value: _uploadProgress),
-                              SizedBox(height: 4),
-                              Text(
-                                'Enviando arquivo: ${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _isUploading ? null : _saveForm,
-                  icon: Icon(Icons.save),
-                  label: Text('Salvar Transação'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: ElevatedButton(
+                    onPressed: _isUploading ? null : _saveForm,
+                    child: Text('Salvar', style: TextStyle(fontSize: 14)),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: Size(0, 40),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    ),
                   ),
                 ),
               ],

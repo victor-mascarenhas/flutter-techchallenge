@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Finance App',
+        title: 'TechChallenge',
         theme: ThemeData(primarySwatch: Colors.blue),
         routes: {
           '/': (ctx) => AuthScreen(),

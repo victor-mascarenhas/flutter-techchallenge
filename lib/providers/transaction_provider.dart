@@ -15,6 +15,7 @@ class TransactionProvider with ChangeNotifier {
   String? _titleFilter;
   DateTime? _startDate;
   DateTime? _endDate;
+  TransactionType? _typeFilter;
 
   List<TransactionModel> get transactions => _transactions;
   bool get hasMore => _hasMore;
@@ -33,22 +34,28 @@ class TransactionProvider with ChangeNotifier {
     String? titleFilter,
     DateTime? startDate,
     DateTime? endDate,
+    TransactionType? typeFilter,
   }) {
     _titleFilter =
         titleFilter != null && titleFilter.isNotEmpty ? titleFilter : null;
     _startDate = startDate;
     _endDate = endDate;
+    _typeFilter = typeFilter;
 
     _lastDocument = null;
     _hasMore = true;
 
     notifyListeners();
+
+    // Chama o carregamento com os filtros aplicados
+    loadTransactions();
   }
 
   void clearFilters() {
     _titleFilter = null;
     _startDate = null;
     _endDate = null;
+    _typeFilter = null;
 
     _lastDocument = null;
     _hasMore = true;
@@ -79,6 +86,13 @@ class TransactionProvider with ChangeNotifier {
         DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59),
       );
       query = query.where('date', isLessThanOrEqualTo: endTimestamp);
+    }
+
+    if (_typeFilter != null) {
+      query = query.where(
+        'type',
+        isEqualTo: _typeFilter.toString().split('.').last,
+      );
     }
 
     query = query.limit(_limit);
@@ -129,6 +143,14 @@ class TransactionProvider with ChangeNotifier {
   }
 
   Future<void> addTransaction(TransactionModel transaction) async {
+    // Validar se o tipo da transação está correto de acordo com o valor
+    if ((transaction.amount >= 0 &&
+            transaction.type != TransactionType.deposit) ||
+        (transaction.amount < 0 &&
+            transaction.type != TransactionType.transfer)) {
+      throw Exception('Tipo de transação inválido para o valor informado');
+    }
+
     await _firestore.collection('transactions').add(transaction.toMap());
     _lastDocument = null;
     _hasMore = true;
@@ -136,6 +158,14 @@ class TransactionProvider with ChangeNotifier {
   }
 
   Future<void> editTransaction(TransactionModel transaction) async {
+    // Validar se o tipo da transação está correto de acordo com o valor
+    if ((transaction.amount >= 0 &&
+            transaction.type != TransactionType.deposit) ||
+        (transaction.amount < 0 &&
+            transaction.type != TransactionType.transfer)) {
+      throw Exception('Tipo de transação inválido para o valor informado');
+    }
+
     await _firestore
         .collection('transactions')
         .doc(transaction.id)
