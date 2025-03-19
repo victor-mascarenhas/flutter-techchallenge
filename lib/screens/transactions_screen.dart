@@ -19,7 +19,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   TransactionType? _typeFilter;
-  bool _isFilterExpanded = false;
 
   @override
   void initState() {
@@ -287,6 +286,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return Consumer<TransactionProvider>(
       builder: (ctx, transactionProvider, _) {
         final transactions = transactionProvider.transactions;
+        double totalTransfers = transactions
+            .where((t) => t.type == TransactionType.transfer)
+            .fold(0.0, (sum, t) => sum + t.amount);
+
+        double totalDeposits = transactions
+            .where((t) => t.type == TransactionType.deposit)
+            .fold(0.0, (sum, t) => sum + t.amount);
+
+        double totalAmount = totalDeposits - (totalTransfers * -1);
         return Scaffold(
           appBar: AppBar(
             title: Text('Transações'),
@@ -297,12 +305,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               IconButton(
                 icon: Icon(Icons.logout),
-                onPressed:
-                    () =>
-                        Provider.of<AuthProvider>(
-                          context,
-                          listen: false,
-                        ).signOut(),
+                onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  await authProvider.signOut();
+
+                  Navigator.of(context).pushReplacementNamed('/');
+                },
               ),
             ],
           ),
@@ -328,29 +339,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               children: [
                                 _buildSummaryItem(
                                   'Transferências',
-                                  transactions
-                                      .where(
-                                        (t) =>
-                                            t.type == TransactionType.transfer,
-                                      )
-                                      .length
-                                      .toString(),
+                                  'R\$${totalTransfers.abs().toStringAsFixed(2)}',
                                   Colors.red,
                                 ),
                                 _buildSummaryItem(
                                   'Depósitos',
-                                  transactions
-                                      .where(
-                                        (t) =>
-                                            t.type == TransactionType.deposit,
-                                      )
-                                      .length
-                                      .toString(),
+                                  'R\$${totalDeposits.toStringAsFixed(2)}',
                                   Colors.green,
                                 ),
                                 _buildSummaryItem(
                                   'Total',
-                                  'R\$${transactions.fold(0.0, (sum, t) => sum + t.amount).toStringAsFixed(2)}',
+                                  'R\$${totalAmount.toStringAsFixed(2)}',
                                   Colors.blue,
                                   compact: true,
                                 ),
