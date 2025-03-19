@@ -24,8 +24,8 @@ Link para a gravação: https://drive.google.com/file/d/1zSLz63gNwWiY5XuuvQqOI5V
 
 1. Clone este repositório:
    ```sh
-   git clone https://github.com/seu-usuario/TechChallenge.git
-   cd TechChallenge
+   git clone https://github.com/victor-mascarenhas/flutter-techchallenge.git
+   cd flutter-techchallenge
    ```
 
 2. Instale as dependências:
